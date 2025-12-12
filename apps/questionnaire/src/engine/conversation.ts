@@ -1,7 +1,7 @@
 import { Character, CharacterDatapoint } from '../types/character';
 import { QuestionnaireDoc } from '../models/Questionnaire';
 import { getCharacter } from './characterRegistry';
-import { geminiAPIClient } from '../../../../packages/ai/src/index';
+import { geminiAPIClient } from '@tatvaops/ai';
 import { MAX_CONTEXT_TURNS, EXTRACTION_CONFIDENCE_THRESHOLD_AUTO, MAX_TURNS_BEFORE_DIRECT_ASK } from '../config';
 
 type LLMClient = (prompt: string) => Promise<string>;
