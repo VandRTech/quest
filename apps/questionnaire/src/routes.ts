@@ -12,6 +12,7 @@ import {
   generateAssistantReply,
 } from './engine/conversation';
 import { getRequiredFieldsForService } from './engine/coverage-policy';
+import { resolveServiceId, getDisplayNameByServiceCode } from './service-codes';
 
 export const router = Router();
 
@@ -56,21 +57,27 @@ router.get('/', (_req, res) => { res.json({ name: 'questionnaire', version: '1.0
 router.use('/admin', adminRouter);
 
 // Start questionnaire (dynamic flow uses app registry character with datapoints – same flow for all services)
+// Character mapping is driven by service code first; fallback to core registry by internal id, then default character.
 router.post('/questionnaires', async (req, res) => {
   const { service, channel, userRef } = req.body || {};
   if (!service) return res.status(422).json({ error: 'service is required' });
 
+  const serviceId = resolveServiceId(service);
+
+  const defaultCharacterId = config.WHATSAPP_CHARACTER_DEFAULT || 'aadhya';
+  const defaultDisplayName = 'Aadhya Rao';
+
   let coreCharacter: { id: string; name?: string };
   try {
-    coreCharacter = pickCharacter(service as any);
+    coreCharacter = pickCharacter(serviceId as any);
   } catch {
-    coreCharacter = { id: config.WHATSAPP_CHARACTER_DEFAULT || 'aadhya', name: 'Aadhya Rao' };
+    coreCharacter = { id: defaultCharacterId, name: defaultDisplayName };
   }
   const dynamicCharacterId =
-    getCharacter(coreCharacter.id) ? coreCharacter.id : (config.WHATSAPP_CHARACTER_DEFAULT || 'aadhya');
+    getCharacter(coreCharacter.id) ? coreCharacter.id : defaultCharacterId;
 
   const newDoc = await QuestionnaireStore.create({
-    service,
+    service: serviceId,
     characterId: dynamicCharacterId,
     channel,
     userRef,
@@ -81,13 +88,14 @@ router.post('/questionnaires', async (req, res) => {
     updatedAt: new Date(),
   });
 
-  // Use service's character name for display (so UI shows Shreya for Commercial, Ramesh for Plumbing, etc.)
-  const rawName = coreCharacter.name || getCharacter(dynamicCharacterId)?.name || 'Aadhya Rao';
-  const displayName = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : rawName;
+  // Display name: primary = service-code map (character register by code); fallback = core character name or default
+  const nameFromCore = coreCharacter.name || getCharacter(dynamicCharacterId)?.name || defaultDisplayName;
+  const rawFallback = nameFromCore.includes(' - ') ? nameFromCore.split(' - ')[0].trim() : nameFromCore;
+  const displayName = getDisplayNameByServiceCode(service, rawFallback);
   await QuestionnaireStore.save(newDoc);
   res.status(201).json({
     id: newDoc.id,
-    service,
+    service: serviceId,
     character: displayName,
     nextQuestion: '', // Intro comes from backend with first reply, not from create
   });
@@ -136,17 +144,19 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
     lastUserMessage: text,
   });
 
-  // First assistant reply: use service's character name for intro (e.g. "Hi! I'm Shreya, your commercial interiors consultant")
+  // First assistant reply: character name from service-code map first, fallback to core registry
   let reply = generatedReply;
   const hasNoAssistantMessagesYet = !doc.transcript.some((m: { role: string }) => m.role === 'assistant');
   if (hasNoAssistantMessagesYet) {
-    let serviceCharacter: { name?: string } | null = null;
+    let nameFromCore: string | null = null;
     try {
-      serviceCharacter = pickCharacter(doc.service as any);
+      const sc = pickCharacter(doc.service as any);
+      nameFromCore = sc?.name ? (sc.name.includes(' - ') ? sc.name.split(' - ')[0].trim() : sc.name) : null;
     } catch {
-      serviceCharacter = null;
+      nameFromCore = null;
     }
-    const openingCharacter = serviceCharacter ? { name: serviceCharacter.name } : character;
+    const introName = getDisplayNameByServiceCode(doc.service, nameFromCore || character.name || 'Aadhya Rao');
+    const openingCharacter = { name: introName };
     const opening = getOpeningForService(doc.service, openingCharacter);
     reply = `${opening.trim()} ${reply.trim()}`.replace(/\s+/g, ' ').trim();
   }

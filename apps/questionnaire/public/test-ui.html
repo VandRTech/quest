@@ -596,20 +596,18 @@
         
         <div class="service-selector">
             <h3>Select Service:</h3>
-            <div class="service-buttons">
-                <button class="service-btn" data-service="residential_interiors">Residential Interiors</button>
-                <button class="service-btn" data-service="commercial_interiors">Commercial Interiors</button>
-                <button class="service-btn" data-service="commercial_construction">Commercial Construction</button>
-                <button class="service-btn" data-service="property_development">Property Development</button>
-                <button class="service-btn" data-service="residential_construction">Residential Construction</button>
-                <button class="service-btn" data-service="home_automation">Home Automation</button>
-                <button class="service-btn" data-service="painting">Painting</button>
-                <button class="service-btn" data-service="solar_services">Solar Services</button>
-                        <button class="service-btn" data-service="electrical_services">Electrical Services</button>
-                <button class="service-btn" data-service="irrigation_automation">Irrigation Automation</button>
-                <button class="service-btn" data-service="event_management">Event Management</button>
-                <button class="service-btn" data-service="farm_infrastructure">Farm Infrastructure</button>
-                <button class="service-btn" data-service="plumbing_services">Plumbing Services</button>
+            <div class="service-buttons" id="serviceButtonsContainer">
+                <button class="service-btn" data-service="CIRC01" data-service-id="residential_construction">Residential Construction</button>
+                <button class="service-btn" data-service="IRRI01" data-service-id="residential_interiors">Home Interiors</button>
+                <button class="service-btn" data-service="IRPW02" data-service-id="painting">Painting & Waterproofing</button>
+                <button class="service-btn" data-service="CIEL03" data-service-id="electrical_services">Electrical Services</button>
+                <button class="service-btn" data-service="CIPL02" data-service-id="plumbing_services">Plumbing</button>
+                <button class="service-btn" data-service="SESR01" data-service-id="solar_services">Solar Rooftop Installation</button>
+                <button class="service-btn" data-service="PSEM01" data-service-id="event_management">Event Management Projects</button>
+                <button class="service-btn" data-service="RPPD01" data-service-id="property_development">Property Development</button>
+                <button class="service-btn" data-service="HASH01" data-service-id="home_automation">Home Automation</button>
+                <button class="service-btn" data-service="AAFI01" data-service-id="farm_infrastructure">Farm Infrastructure Setup</button>
+                <button class="service-btn" data-service="AAIA02" data-service-id="irrigation_automation">Irrigation Automation</button>
             </div>
         </div>
 
@@ -716,19 +714,19 @@
         ];
 
         const serviceNameMap = {
-            residential_interiors: 'Residential Interiors',
+            residential_interiors: 'Home Interiors',
             commercial_interiors: 'Commercial Interiors & Fit-Out',
             commercial_construction: 'Commercial Construction Delivery',
-            property_development: 'Property Development & Vendor Control',
-            residential_construction: 'Residential Construction Services',
+            property_development: 'Property Development',
+            residential_construction: 'Residential Construction',
             home_automation: 'Home Automation',
-            painting: 'Painting & Finishes',
-            solar_services: 'Solar Services',
-            electrical_services: 'Electrical Safety',
+            painting: 'Painting & Waterproofing',
+            solar_services: 'Solar Rooftop Installation',
+            electrical_services: 'Electrical Services',
             irrigation_automation: 'Irrigation Automation',
-            event_management: 'Event Management',
+            event_management: 'Event Management Projects',
             farm_infrastructure: 'Farm Infrastructure Setup',
-            plumbing_services: 'Plumbing Services'
+            plumbing_services: 'Plumbing'
         };
 
         const serviceTriggerMessages = {
@@ -925,7 +923,7 @@
 
                 const data = await response.json();
                 currentQuestionnaireId = data.id;
-                currentService = service;
+                currentService = data.service || service;
                 collectedParameters = {};
                 currentCharacterName = data.character || 'AI Consultant';
                 updateHeader(currentCharacterName, service);
