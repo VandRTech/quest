@@ -302,7 +302,7 @@ CRITICAL EXTRACTION RULES:
    - "next week" / "next month" → project start, NOT callback
 4. timeline = project DURATION (45 days, 2 months, 6 weeks)
 5. rooms: "2BHK" → value:"2BHK", confidence:0.95
-6. project_type: "apartment/flat" → value:"apartment", confidence:0.95
+6. project_type: only when user clearly states type. "apartment/flat" → value:"apartment". "villa/bungalow" → "villa". "independent house" when they say it. Do NOT set project_type from generic "for my home" or "support for my home" in greetings – that is not stating property type.
 7. AMBIGUOUS answers ("maybe", "not sure") → confidence:0.4
 8. CLEAR answers → confidence:0.85-0.95
 9. NOT mentioned → value:null, confidence:0
@@ -462,7 +462,7 @@ export async function generateAssistantReply(
   const lastBotMsg = session.transcript?.filter(m => m.role === 'assistant').pop()?.text || '';
   const callbackVal = session.parameters?.callback_time;
   const hasCallbackTime = callbackVal != null && (typeof callbackVal !== 'object' || (callbackVal as any).value != null);
-  const botJustConfirmedCall = /connect|call you|looking forward|we'll connect|schedule|talk to you|give you a call/i.test(lastBotMsg);
+  const botJustConfirmedCall = /connect|call you|looking forward|we'll connect|schedule|talk to you|give you a call|call right away|connecting with you|connect very soon/i.test(lastBotMsg);
   const userShortAck = /^(sure|ok|yes|yeah|yep|done|great|sounds good|perfect)$/i.test(lastUserMsg.trim());
 
   // Check if conversation is complete (all required fields, or call confirmed and user acked)
@@ -471,7 +471,10 @@ export async function generateAssistantReply(
     updateConversationState(session, state);
     return { reply: closingReply, askDirect: [], isComplete: true, mood: currentMood };
   }
-  if (hasCallbackTime && botJustConfirmedCall && userShortAck) {
+  if (botJustConfirmedCall && userShortAck) {
+    if (!hasCallbackTime && session.parameters) {
+      (session.parameters as any).callback_time = { value: 'soon', confidence: 0.9, ts: new Date().toISOString() };
+    }
     const closingReply = await generateClosingMessage(session, character, llm);
     updateConversationState(session, state);
     return { reply: closingReply, askDirect: [], isComplete: true, mood: currentMood };
@@ -764,12 +767,12 @@ function fallbackRegexExtraction(message: string, isAmbiguous: boolean): Record<
     parsed.size_sqft = { value: parseInt(sqftMatch[1]), confidence: 0.9, isAmbiguous: false };
   }
   
-  // Project type patterns
+  // Project type patterns – don't infer from generic "for my home" / "support for my home"
   if (/\b(villa|bungalow)\b/i.test(message)) {
     parsed.project_type = { value: 'villa', confidence: 0.95, isAmbiguous: false };
   } else if (/\b(apartment|flat|apt)\b/i.test(message)) {
     parsed.project_type = { value: 'apartment', confidence: 0.95, isAmbiguous: false };
-  } else if (/\b(house|home|independent)\b/i.test(message)) {
+  } else if (/\b(house|home|independent)\b/i.test(message) && !/\b(for\s+my|for\s+our|support\s+for)\s+home\b/i.test(message)) {
     parsed.project_type = { value: 'independent house', confidence: 0.85, isAmbiguous: false };
   }
   
@@ -832,6 +835,13 @@ function validateExtractionContext(
     }
   }
   
+  // Don't assume project_type from intros (e.g. "exploring ... for my home") – ask explicitly first
+  const botAskedAboutProjectType = /\b(apartment|villa|independent|property type|type of (home|property|house))\b/i.test(lower);
+  const userIntroPhrase = /\b(exploring|interested|looking for|hello!?|hi!?|need (help|support)|support for (my|our) home)\b/i.test(userMsg.trim());
+  if (parsed.project_type && !botAskedAboutProjectType && userIntroPhrase) {
+    delete parsed.project_type;
+  }
+
   // If bot asked about project START date (not callback), then it's preferred_start
   const askedAboutProjectStart = lower.includes('start') && (lower.includes('project') || lower.includes('work'));
   if (askedAboutProjectStart && /next week|next month|monday|january|february/i.test(userMsg)) {

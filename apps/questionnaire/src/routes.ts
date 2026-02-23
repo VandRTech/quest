@@ -81,13 +81,14 @@ router.post('/questionnaires', async (req, res) => {
     updatedAt: new Date(),
   });
 
-  const displayCharacter = getCharacter(dynamicCharacterId) || coreCharacter;
-  // Do not push opening to transcript; first reply (after first user message) will include intro + first question from backend
+  // Use service's character name for display (so UI shows Shreya for Commercial, Ramesh for Plumbing, etc.)
+  const rawName = coreCharacter.name || getCharacter(dynamicCharacterId)?.name || 'Aadhya Rao';
+  const displayName = rawName.includes(' - ') ? rawName.split(' - ')[0].trim() : rawName;
   await QuestionnaireStore.save(newDoc);
   res.status(201).json({
     id: newDoc.id,
     service,
-    character: displayCharacter.name || coreCharacter.name,
+    character: displayName,
     nextQuestion: '', // Intro comes from backend with first reply, not from create
   });
   return;
@@ -116,12 +117,18 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
   const extracted = await extractDatapointsFromMessage(text, doc, character);
   applyExtracted(doc, extracted);
 
-  // When user agrees to schedule a call ("yes" / "sure" / "ok"), set contact_pref so we can complete after callback_time
+  // When user agrees to schedule a call ("yes" / "sure" / "ok"), set contact_pref and ensure callback_time so we can complete
   const lastBotMsg = doc.transcript?.filter(m => m.role === 'assistant').pop()?.text || '';
-  const agreedToCall = /\b(yes|sure|ok|yeah|yep)\b/i.test(text.trim()) && /schedule|connect|call you|quick chat|when would/i.test(lastBotMsg);
-  if (agreedToCall && !(doc.parameters && doc.parameters.contact_pref)) {
+  const agreedToCall = /\b(yes|sure|ok|yeah|yep)\b/i.test(text.trim()) &&
+    /schedule|connect|call you|give you a call|call right away|quick chat|when would|looking forward|we'll connect|connecting with you/i.test(lastBotMsg);
+  if (agreedToCall) {
     if (!doc.parameters) doc.parameters = {};
-    (doc.parameters as any).contact_pref = { value: 'phone', confidence: 0.9, ts: new Date().toISOString() };
+    if (!(doc.parameters as any).contact_pref) {
+      (doc.parameters as any).contact_pref = { value: 'phone', confidence: 0.9, ts: new Date().toISOString() };
+    }
+    if (!(doc.parameters as any).callback_time && /right away|asap|very soon|soon\b|connecting with you/i.test(lastBotMsg)) {
+      (doc.parameters as any).callback_time = { value: /right away|asap/i.test(lastBotMsg) ? 'now' : 'soon', confidence: 0.9, ts: new Date().toISOString() };
+    }
   }
 
   // Generate natural assistant reply (asks only for missing / uncertain)
@@ -129,11 +136,18 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
     lastUserMessage: text,
   });
 
-  // First assistant reply: include character intro + first question (from backend, not UI)
+  // First assistant reply: use service's character name for intro (e.g. "Hi! I'm Shreya, your commercial interiors consultant")
   let reply = generatedReply;
   const hasNoAssistantMessagesYet = !doc.transcript.some((m: { role: string }) => m.role === 'assistant');
   if (hasNoAssistantMessagesYet) {
-    const opening = getOpeningForService(doc.service, character);
+    let serviceCharacter: { name?: string } | null = null;
+    try {
+      serviceCharacter = pickCharacter(doc.service as any);
+    } catch {
+      serviceCharacter = null;
+    }
+    const openingCharacter = serviceCharacter ? { name: serviceCharacter.name } : character;
+    const opening = getOpeningForService(doc.service, openingCharacter);
     reply = `${opening.trim()} ${reply.trim()}`.replace(/\s+/g, ' ').trim();
   }
 
