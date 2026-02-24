@@ -1,7 +1,8 @@
 /**
- * Per-service adaptive coverage policy: required and optional datapoint ids for completion.
- * Used to decide when a conversation is complete and to drive follow-up questions.
+ * Per-service coverage policy: 9 required + 9 optional for each service.
+ * Sourced from service-parameters (development and sale ready); fallback for unknown services.
  */
+import { getRequiredIdsForService as getRequiredFromServiceParams, getOptionalIdsForService as getOptionalFromServiceParams, hasServiceParams } from '../service-parameters';
 
 export type CoveragePolicy = {
   required: string[];
@@ -17,6 +18,7 @@ const DEFAULT_REQUIRED = [
   'timeline',
   'contact_pref',
   'callback_time',
+  'preferred_start',
 ];
 
 const DEFAULT_OPTIONAL = [
@@ -25,176 +27,42 @@ const DEFAULT_OPTIONAL = [
   'site_ready',
   'storage_needs',
   'lighting_pref',
-  'callback_time',
-  'preferred_start',
   'notes',
   'moodboard_refs',
+  'special_zones',
+  'material_preference',
 ];
 
-const policyByService: Record<string, CoveragePolicy> = {
-  residential_interiors: {
-    required: DEFAULT_REQUIRED,
-    optional: DEFAULT_OPTIONAL,
-  },
-  commercial_interiors: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'style',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['must_haves', 'avoid', 'notes'],
-  },
-  commercial_construction: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  property_development: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  residential_construction: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  home_automation: {
-    required: [
-      'project_type',
-      'rooms',
-      'style',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  painting: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'style',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  solar_services: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  electrical_services: {
-    required: [
-      'project_type',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  irrigation_automation: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  event_management: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  farm_infrastructure: {
-    required: [
-      'project_type',
-      'size_sqft',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-  plumbing_services: {
-    required: [
-      'project_type',
-      'budget',
-      'timeline',
-      'contact_pref',
-      'callback_time',
-    ],
-    optional: ['notes'],
-  },
-};
-
 /**
- * Returns required datapoint ids for the given service (for completion check).
+ * Returns required datapoint ids for the given service (9 mandatory).
  */
 export function getRequiredFieldsForService(service: string): string[] {
-  return policyByService[service]?.required ?? DEFAULT_REQUIRED;
+  if (hasServiceParams(service)) {
+    const ids = getRequiredFromServiceParams(service);
+    if (ids.length > 0) return ids;
+  }
+  return DEFAULT_REQUIRED;
 }
 
 /**
- * Returns optional datapoint ids for the given service.
+ * Returns optional datapoint ids for the given service (9 optional).
  */
 export function getOptionalFieldsForService(service: string): string[] {
-  return policyByService[service]?.optional ?? DEFAULT_OPTIONAL;
+  if (hasServiceParams(service)) {
+    const ids = getOptionalFromServiceParams(service);
+    if (ids.length > 0) return ids;
+  }
+  return DEFAULT_OPTIONAL;
 }
 
 /**
- * Returns full coverage policy for the service.
+ * Returns full coverage policy for the service (9 required + 9 optional).
  */
 export function getCoveragePolicyForService(service: string): CoveragePolicy {
-  return (
-    policyByService[service] ?? {
-      required: DEFAULT_REQUIRED,
-      optional: DEFAULT_OPTIONAL,
-    }
-  );
+  return {
+    required: getRequiredFieldsForService(service),
+    optional: getOptionalFieldsForService(service),
+  };
 }
 
 /**

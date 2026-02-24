@@ -4,6 +4,7 @@ import { getCharacter } from './characterRegistry';
 import { geminiAPIClient } from '@tatvaops/ai';
 import { MAX_CONTEXT_TURNS, EXTRACTION_CONFIDENCE_THRESHOLD_AUTO, MAX_TURNS_BEFORE_DIRECT_ASK } from '../config';
 import { isCoverageSatisfied, getRequiredFieldsForService } from './coverage-policy';
+import { getDatapointsForService, hasServiceParams } from '../service-parameters';
 
 type LLMClient = (prompt: string) => Promise<string>;
 
@@ -356,13 +357,15 @@ function summarisePersona(character: Character): string {
 }
 
 function collectPendingDatapoints(session: QuestionnaireDoc, character: Character): CharacterDatapoint[] {
-  const points = character.datapoints || [];
+  const points = hasServiceParams(session.service)
+    ? getDatapointsForService(session.service)
+    : (character.datapoints || []);
   const pending: CharacterDatapoint[] = [];
   for (const dp of points) {
     const hasValue = session.parameters && Object.prototype.hasOwnProperty.call(session.parameters, dp.id);
     if (!hasValue) pending.push(dp);
   }
-  return sortPending(pending);
+  return hasServiceParams(session.service) ? pending : sortPending(pending);
 }
 
 // Conversational order to avoid front-loading budget/timeline
@@ -385,11 +388,18 @@ const PREFERRED_ORDER = [
   'preferred_start',
 ];
 
-const BASE_FIELDS = ['project_type', 'size_sqft', 'rooms', 'style'];
 const LATE_FIELDS = ['budget', 'timeline'];
 
 function hasAllBase(session: QuestionnaireDoc): boolean {
-  return BASE_FIELDS.every((f) => session.parameters && Object.prototype.hasOwnProperty.call(session.parameters, f));
+  const required = getRequiredFieldsForService(session.service);
+  const early = required.filter((id) => !LATE_FIELDS.includes(id));
+  const need = Math.min(4, Math.max(2, early.length));
+  let collected = 0;
+  for (const id of early) {
+    const val = session.parameters?.[id];
+    if (val != null && (typeof val !== 'object' || (val as any).value != null)) collected++;
+  }
+  return collected >= need;
 }
 
 function isConversationComplete(session: QuestionnaireDoc): boolean {

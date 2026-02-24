@@ -49,6 +49,40 @@ const paramLabelMap: Record<string, string> = {
   site_ready: 'Site ready',
   moodboard_refs: 'Moodboard refs',
   preferred_start: 'Preferred start',
+  plot_size_sqft: 'Plot size (sqft)',
+  floors: 'Number of floors',
+  has_soil_test: 'Soil test',
+  has_approvals: 'Approvals',
+  space_use: 'Space use',
+  brand_theme: 'Brand / theme',
+  occupancy: 'Occupancy',
+  construction_type: 'Construction type',
+  delivery_phase: 'Delivery phase',
+  contract_type: 'Contract type',
+  num_units: 'Number of units',
+  delivery_model: 'Delivery model',
+  automation_scope: 'Automation scope',
+  current_systems: 'Current systems',
+  surface_type: 'Surface type',
+  area_scope: 'Area scope',
+  paint_type: 'Paint type',
+  roof_type: 'Roof type',
+  capacity_kw: 'Capacity (kW)',
+  grid_type: 'Grid type',
+  scope_type: 'Scope',
+  load_requirement: 'Load requirement',
+  current_system: 'Current system',
+  safety_audit: 'Safety audit',
+  water_source: 'Water source',
+  current_issues: 'Current issues',
+  property_age: 'Property age',
+  land_size_sqft: 'Land size (sqft)',
+  crop_type: 'Crop type',
+  event_type: 'Event type',
+  guest_count: 'Guest count',
+  venue_type: 'Venue type',
+  primary_use: 'Primary use',
+  power_avail: 'Power availability',
 };
 
 export async function generateProjectSummary(
@@ -121,7 +155,8 @@ Rules: No filler. No "we will ensure" or "as per client". Just facts and one cle
         parameters.budgetRange || parameters.budget || parameters.budgetTier || parameters.budgetBrandFlexibility || '';
       const areaFromParams =
         parameters.areaSqft || parameters.size_sqft || parameters.carpetAreaSqft || parameters.builtUpAreaSqft ||
-        parameters.totalAreaSqft || parameters.availableRoofAreaSqft || parameters.plotSize || '';
+        parameters.totalAreaSqft || parameters.availableRoofAreaSqft || parameters.plotSize ||
+        parameters.plot_size_sqft || parameters.land_size || parameters.land_size_sqft || '';
       const callbackTime = parameters.callback_time || '';
       const contactPref = parameters.contact_pref || 'phone';
       const defaultNextStep =
