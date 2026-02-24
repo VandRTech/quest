@@ -59989,7 +59989,9 @@ LAST ANSWER WAS AMBIGUOUS: User said "${lastUserMsg}" - you may need to gently c
     callConfirmedSection = `
 CRITICAL - CALL ALREADY CONFIRMED: You already said you'll connect/call and the user acknowledged ("sure", "ok", etc.). Do NOT ask any new questions (no storage, no moodboard, nothing). Reply with ONLY a brief sign-off, e.g. "Great, see you then!" or "Talk to you tomorrow!" \u2013 one short sentence max.`;
   }
-  const prompt = ASSISTANT_PROMPT_TEMPLATE.replace("<CHARACTER_NAME>", character.name).replace("<PERSONA_SUMMARY>", personaSummary).replace("<TONE>", tone).replace("<MOOD>", currentMood).replace("<MOOD_GUIDANCE>", moodGuidance).replace("<COLLECTED>", collectedBlock).replace("<TRANSCRIPT>", transcriptBlock || "No prior context").replace("<PENDING>", effectivePending.length ? formatPending(effectivePending) : "None - all data collected!").replace("<AMBIGUITY_SECTION>", ambiguitySection).replace("<CALL_CONFIRMED_SECTION>", callConfirmedSection).replace("<MAX_TURNS>", String(character.collectionStrategy?.maxTurnsBeforeDirectAsk || MAX_TURNS_BEFORE_DIRECT_ASK));
+  const serviceRole = character.persona?.role || "consultant";
+  const serviceName = SERVICE_DISPLAY_NAMES[session.service] || session.service.replace(/_/g, " ");
+  const prompt = ASSISTANT_PROMPT_TEMPLATE.replace("<CHARACTER_NAME>", character.name).replace("<SERVICE_ROLE>", serviceRole).replace("<SERVICE_NAME>", serviceName).replace("<PERSONA_SUMMARY>", personaSummary).replace("<TONE>", tone).replace("<MOOD>", currentMood).replace("<MOOD_GUIDANCE>", moodGuidance).replace("<COLLECTED>", collectedBlock).replace("<TRANSCRIPT>", transcriptBlock || "No prior context").replace("<PENDING>", effectivePending.length ? formatPending(effectivePending) : "None - all data collected!").replace("<AMBIGUITY_SECTION>", ambiguitySection).replace("<CALL_CONFIRMED_SECTION>", callConfirmedSection).replace("<MAX_TURNS>", String(character.collectionStrategy?.maxTurnsBeforeDirectAsk || MAX_TURNS_BEFORE_DIRECT_ASK));
   let text = (await llm(prompt)).trim();
   text = humanizeResponse(text, currentMood, state.turnCount);
   const askDirect = [];
@@ -60230,7 +60232,7 @@ function getCharacterOrThrow(id) {
   if (!ch) throw new Error(`Character not found: ${id}`);
   return ch;
 }
-var MOOD_INDICATORS, AMBIGUITY_PHRASES, CLARIFICATION_REQUEST_PHRASES, ACKNOWLEDGMENTS, TRANSITION_PHRASES, ASSISTANT_PROMPT_TEMPLATE, CLOSING_PROMPT_TEMPLATE, CLARIFICATION_PROMPT_TEMPLATE, EXTRACTION_PROMPT_TEMPLATE, PREFERRED_ORDER, LATE_FIELDS, lastUsedStarter;
+var SERVICE_DISPLAY_NAMES, MOOD_INDICATORS, AMBIGUITY_PHRASES, CLARIFICATION_REQUEST_PHRASES, ACKNOWLEDGMENTS, TRANSITION_PHRASES, ASSISTANT_PROMPT_TEMPLATE, CLOSING_PROMPT_TEMPLATE, CLARIFICATION_PROMPT_TEMPLATE, EXTRACTION_PROMPT_TEMPLATE, PREFERRED_ORDER, LATE_FIELDS, lastUsedStarter;
 var init_conversation = __esm({
   "src/engine/conversation.ts"() {
     "use strict";
@@ -60239,6 +60241,21 @@ var init_conversation = __esm({
     init_config2();
     init_coverage_policy();
     init_service_parameters();
+    SERVICE_DISPLAY_NAMES = {
+      residential_interiors: "Residential Interiors",
+      commercial_interiors: "Commercial Interiors & Fit-Out",
+      commercial_construction: "Commercial Construction",
+      property_development: "Property Development",
+      residential_construction: "Residential Construction",
+      home_automation: "Home Automation",
+      painting: "Painting & Finishes",
+      solar_services: "Solar Services",
+      electrical_services: "Electrical Services",
+      irrigation_automation: "Irrigation Automation",
+      event_management: "Event Management",
+      farm_infrastructure: "Farm Infrastructure",
+      plumbing_services: "Plumbing Services"
+    };
     MOOD_INDICATORS = {
       positive: ["great", "wonderful", "love", "excited", "yes", "perfect", "awesome", "sure", "definitely", "amazing", "happy"],
       confused: ["what", "huh", "dont understand", "don't understand", "confused", "not sure", "unclear", "explain", "like?", "meaning", "how"],
@@ -60349,7 +60366,8 @@ var init_conversation = __esm({
     ];
     ASSISTANT_PROMPT_TEMPLATE = `
 SYSTEM:
-You are <CHARACTER_NAME>, a real interior design consultant having a natural conversation. NOT a chatbot.
+You are <CHARACTER_NAME>, a <SERVICE_ROLE> consultant having a natural conversation. NOT a chatbot.
+SERVICE: <SERVICE_NAME>
 Persona: <PERSONA_SUMMARY>
 Tone: <TONE>
 
@@ -60366,10 +60384,14 @@ USER'S CURRENT MOOD: <MOOD>
 WHAT WE ALREADY KNOW (NEVER ask about these again):
 <COLLECTED>
 
-WHAT'S STILL MISSING (ask about the FIRST item in this list only; follow this order):
+WHAT'S STILL MISSING for this <SERVICE_NAME> project (ask only the FIRST item):
 <PENDING>
 
-QUESTION ORDER RULE: Ask about the FIRST missing item in the list above only. Do NOT ask about budget or timeline until project_type, rooms, size_sqft, and style are already in WHAT WE ALREADY KNOW. Start with project type / property type, then BHK/rooms, then size, then style \u2013 only after that ask budget or timeline.
+QUESTION ORDER RULE:
+- Ask about the FIRST item in WHAT'S STILL MISSING.
+- If the user has already given you information about a field (even informally), DO NOT ask for it again \u2014 it is in WHAT WE ALREADY KNOW.
+- If the user volunteered answers to multiple pending fields in one message, skip all of those and ask the next unanswered one.
+- Do not ask about budget or timeline until at least 3 core fields (type, size, scope) are known.
 
 RECENT CONVERSATION:
 <TRANSCRIPT>
@@ -60379,11 +60401,10 @@ RECENT CONVERSATION:
 <CALL_CONFIRMED_SECTION>
 
 FLOW GUARDRAILS (must follow):
-- Do NOT ask about budget or timeline before project type, rooms, size and style are known.
+- Do NOT ask about budget or timeline until at least 3 core fields (type, size, scope) are in WHAT WE ALREADY KNOW.
 - Do NOT ask any new question after you have confirmed a callback time and the user has acknowledged (e.g. "sure", "ok"). Only sign off.
 - Ask exactly ONE topic per message. Do not combine two questions.
-- Follow the order of WHAT'S STILL MISSING: ask only the first item.
-- Never re-ask something that is already in WHAT WE ALREADY KNOW.
+- Follow WHAT'S STILL MISSING: ask only the first item. Never re-ask something that is already in WHAT WE ALREADY KNOW.
 
 STRICT RULES:
 1. Keep response under 180 characters
