@@ -1,17 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import createApp from '../src/index';
 
-let app: any = null;
+let app: ReturnType<typeof createApp> | null = null;
 
 function getApp() {
   if (!app) {
-    try {
-      // Import directly from sources; Vercel bundles relative imports
-      const createApp = require('../src/index').default || require('../src/index');
-      app = createApp();
-    } catch (error) {
-      console.error('Failed to create app:', error);
-      throw error;
-    }
+    app = createApp();
   }
   return app;
 }
