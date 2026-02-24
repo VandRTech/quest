@@ -13,6 +13,7 @@ import {
 } from './engine/conversation';
 import { getRequiredFieldsForService } from './engine/coverage-policy';
 import { resolveServiceId, getDisplayNameByServiceCode } from './service-codes';
+import { getParameterLabelsForService } from './service-parameters';
 
 export const router = Router();
 
@@ -99,10 +100,9 @@ router.post('/questionnaires', async (req, res) => {
   if (character) {
     try {
       const { generateAssistantReply } = await import('./engine/conversation');
-      const opening = getOpeningForService(serviceId, { name: displayName, language: character.language as any });
-      // Generate first question from AI
+      // Use only the LLM reply for opening (it already includes character intro + first question; no double intro)
       const { reply } = await generateAssistantReply(newDoc, character, { lastUserMessage: '' });
-      openingMessage = `${opening.trim()} ${reply.trim()}`.replace(/\s+/g, ' ').trim();
+      openingMessage = reply.trim();
       // Push to transcript so follow-up messages don't re-add the intro
       newDoc.transcript.push({ role: 'assistant', text: openingMessage, ts: new Date() });
       await QuestionnaireStore.save(newDoc);
@@ -122,6 +122,7 @@ router.post('/questionnaires', async (req, res) => {
     collected: {},
     options: [],
     allowMultiple: false,
+    parameterLabels: getParameterLabelsForService(serviceId),
   });
   return;
 });
@@ -170,19 +171,10 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
 
   // First assistant reply: character name from service-code map first, fallback to core registry
   let reply = generatedReply;
+  // No double intro: use LLM reply as-is (prompt already has CHARACTER_NAME and SERVICE_ROLE)
   const hasNoAssistantMessagesYet = !doc.transcript.some((m: { role: string }) => m.role === 'assistant');
   if (hasNoAssistantMessagesYet) {
-    let nameFromCore: string | null = null;
-    try {
-      const sc = pickCharacter(doc.service as any);
-      nameFromCore = sc?.name ? (sc.name.includes(' - ') ? sc.name.split(' - ')[0].trim() : sc.name) : null;
-    } catch {
-      nameFromCore = null;
-    }
-    const introName = getDisplayNameByServiceCode(doc.service, nameFromCore || character.name || 'Aadhya Rao');
-    const openingCharacter = { name: introName };
-    const opening = getOpeningForService(doc.service, openingCharacter);
-    reply = `${opening.trim()} ${reply.trim()}`.replace(/\s+/g, ' ').trim();
+    reply = generatedReply.trim();
   }
 
   doc.transcript.push({ role: 'assistant', text: reply, ts: new Date() });
@@ -218,6 +210,7 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
       parameters: doc.parameters,
       summary,
       nextQuestion: reply,
+      parameterLabels: getParameterLabelsForService(doc.service),
     });
   }
 
@@ -243,6 +236,7 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
     mediaUpload: true,
     mediaTypes: ['png', 'jpeg', 'jpg', 'pdf'],
     allowMultiple: false,
+    parameterLabels: getParameterLabelsForService(doc.service),
   });
   return;
 });

@@ -4,6 +4,7 @@
 
 import { geminiAPIClient } from '@tatvaops/ai';
 import { serviceParameters } from './parameters';
+import { getParameterLabelsForService } from './service-parameters';
 import { QuestionnaireDoc, SixPointSummary } from './models/Questionnaire';
 
 export interface ProjectSummary {
@@ -91,10 +92,11 @@ export async function generateProjectSummary(
 ): Promise<ProjectSummary> {
   const serviceName = serviceDisplayNames[service] || service.replace(/_/g, ' ');
   const params = serviceParameters[service] || [];
+  const serviceLabels = getParameterLabelsForService(service);
 
   const paramSummary = Object.entries(parameters)
     .map(([key, value]) => {
-      const label = paramLabelMap[key] || params.find(p => p.id === key)?.label || key.replace(/_/g, ' ');
+      const label = serviceLabels[key] || paramLabelMap[key] || params.find(p => p.id === key)?.label || key.replace(/_/g, ' ');
       return `- ${label}: ${value}`;
     })
     .join('\n');

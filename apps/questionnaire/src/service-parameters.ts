@@ -10,19 +10,19 @@ function def(id: string, label: string, hint: string): ParamDef {
   return { id, label, hint };
 }
 
-/** 9 required + 9 optional per service. Order within required/optional is ask order. */
+/** 9 required + 9 optional per service. All labels and hints are service-specific. */
 const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[] }> = {
   residential_interiors: {
     required: [
-      def('project_type', 'Project type', 'apartment, villa, independent house'),
+      def('project_type', 'Interior project type', 'apartment, villa, independent house'),
       def('rooms', 'Rooms / BHK', 'e.g. 2BHK, 3BHK'),
-      def('size_sqft', 'Area (sqft)', 'approximate area in square feet'),
-      def('style', 'Design style', 'modern, traditional, minimal, japandi, neo-indian'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'completion in days/weeks/months'),
+      def('size_sqft', 'Interior area (sqft)', 'carpet or approximate area in square feet'),
+      def('style', 'Interior design style', 'modern, traditional, minimal, japandi, neo-indian'),
+      def('budget', 'Interior budget', 'budget in lakhs or INR for design + execution'),
+      def('timeline', 'Interior completion timeline', 'completion in days/weeks/months'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call – day and time'),
-      def('preferred_start', 'Preferred start', 'when project work should begin'),
+      def('preferred_start', 'Preferred start', 'when interior work should begin'),
     ],
     optional: [
       def('must_haves', 'Must-haves', 'features, materials, colors they want'),
@@ -38,15 +38,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   residential_construction: {
     required: [
-      def('project_type', 'Project type', 'villa, apartment, independent house'),
-      def('plot_size_sqft', 'Plot size (sqft)', 'plot or built-up area in sqft'),
+      def('project_type', 'Construction project type', 'villa, apartment, independent house'),
+      def('plot_size_sqft', 'Plot / built-up area (sqft)', 'plot or built-up area in sqft'),
       def('floors', 'Number of floors', 'e.g. G+1, G+2'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'completion in days/weeks/months'),
+      def('budget', 'Construction budget', 'budget in lakhs or INR for full build'),
+      def('timeline', 'Construction timeline', 'completion in months'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('has_soil_test', 'Soil test', 'yes/no – soil test done'),
-      def('has_approvals', 'Approvals', 'yes/no – plan sanction / approvals'),
+      def('has_soil_test', 'Soil test done', 'yes/no – soil test completed'),
+      def('has_approvals', 'Plan / approvals', 'yes/no – sanction or approvals in place'),
     ],
     optional: [
       def('material_grade', 'Material grade', 'standard, premium, etc.'),
@@ -62,15 +62,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   commercial_interiors: {
     required: [
-      def('project_type', 'Project type', 'office, retail, restaurant, etc.'),
-      def('size_sqft', 'Carpet area (sqft)', 'usable area in sqft'),
-      def('space_use', 'Space use', 'office, showroom, clinic, etc.'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'completion timeline'),
+      def('project_type', 'Commercial space type', 'office, retail, restaurant, clinic, etc.'),
+      def('size_sqft', 'Carpet area (sqft)', 'usable interior area in sqft'),
+      def('space_use', 'Primary space use', 'office, showroom, clinic, F&B, etc.'),
+      def('budget', 'Fit-out budget', 'budget in lakhs or INR for commercial interior'),
+      def('timeline', 'Fit-out timeline', 'completion or move-in timeline'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('brand_theme', 'Brand / theme', 'brand guidelines or theme'),
-      def('occupancy', 'Occupancy', 'approx number of people / seats'),
+      def('brand_theme', 'Brand / theme', 'brand guidelines or visual theme'),
+      def('occupancy', 'Occupancy / headcount', 'approx number of people or seats'),
     ],
     optional: [
       def('must_haves', 'Must-haves', 'mandatory features or specs'),
@@ -86,15 +86,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   commercial_construction: {
     required: [
-      def('project_type', 'Project type', 'office, warehouse, retail, etc.'),
-      def('size_sqft', 'Built-up area (sqft)', 'area in sqft'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'completion timeline'),
+      def('project_type', 'Commercial build type', 'office, warehouse, retail, mixed-use'),
+      def('size_sqft', 'Built-up area (sqft)', 'total built-up area in sqft'),
+      def('budget', 'Construction budget', 'budget in lakhs or INR for commercial build'),
+      def('timeline', 'Build timeline', 'completion or handover timeline'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('construction_type', 'Construction type', 'new build, extension, etc.'),
-      def('delivery_phase', 'Delivery phase', 'design, build, turnkey'),
-      def('contract_type', 'Contract type', 'lump sum, item rate, etc.'),
+      def('construction_type', 'Build type', 'new build, extension, shell & core'),
+      def('delivery_phase', 'Delivery phase', 'design only, build, or turnkey'),
+      def('contract_type', 'Contract type', 'lump sum, item rate, design-build'),
     ],
     optional: [
       def('mep_scope', 'MEP scope', 'electrical, plumbing, HVAC in scope'),
@@ -110,15 +110,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   property_development: {
     required: [
-      def('project_type', 'Project type', 'residential, commercial, mixed'),
-      def('size_sqft', 'Project scale (sqft)', 'total or per unit'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'delivery timeline'),
+      def('project_type', 'Development type', 'residential, commercial, mixed-use'),
+      def('size_sqft', 'Project scale (sqft)', 'total area or per unit'),
+      def('budget', 'Development budget', 'budget in lakhs or INR'),
+      def('timeline', 'Delivery timeline', 'target completion or phase'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('num_units', 'Number of units', 'units or villas count'),
-      def('development_phase', 'Phase', 'planning, execution, delivery'),
-      def('delivery_model', 'Delivery model', 'turnkey, milestone, etc.'),
+      def('num_units', 'Number of units', 'count of units, villas, or plots'),
+      def('development_phase', 'Current phase', 'planning, execution, delivery'),
+      def('delivery_model', 'Delivery model', 'turnkey, milestone-based, etc.'),
     ],
     optional: [
       def('vendor_pref', 'Vendor preference', 'if any'),
@@ -134,15 +134,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   home_automation: {
     required: [
-      def('project_type', 'Project type', 'apartment, villa, independent house'),
-      def('rooms', 'Rooms / scope', 'which rooms or whole home'),
-      def('property_type', 'Property type', 'new, existing, under construction'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to complete'),
+      def('project_type', 'Property type', 'apartment, villa, independent house'),
+      def('rooms', 'Automation scope (rooms)', 'which rooms or whole home'),
+      def('property_type', 'Property stage', 'new, existing, under construction'),
+      def('budget', 'Automation budget', 'budget in lakhs or INR for smart home'),
+      def('timeline', 'Installation timeline', 'when to complete automation'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('automation_scope', 'Automation scope', 'lighting, security, climate, full'),
-      def('current_systems', 'Current systems', 'existing wiring, systems'),
+      def('automation_scope', 'Automation scope', 'lighting, security, climate, full home'),
+      def('current_systems', 'Existing systems', 'current wiring, panels, devices'),
     ],
     optional: [
       def('lighting_need', 'Lighting', 'smart lighting need'),
@@ -158,15 +158,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   painting: {
     required: [
-      def('project_type', 'Project type', 'residential, commercial, exterior, interior'),
-      def('size_sqft', 'Area (sqft)', 'approx paintable area'),
-      def('surface_type', 'Surface type', 'walls, ceiling, exterior, etc.'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'completion timeline'),
+      def('project_type', 'Painting project type', 'residential, commercial, exterior, interior'),
+      def('size_sqft', 'Paintable area (sqft)', 'approx area to be painted'),
+      def('surface_type', 'Surface type', 'walls, ceiling, exterior, metal, wood'),
+      def('budget', 'Painting budget', 'budget in lakhs or INR for paint work'),
+      def('timeline', 'Painting timeline', 'completion or handover date'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('area_scope', 'Area scope', 'full house, specific rooms'),
-      def('paint_type', 'Paint type', 'emulsion, enamel, texture, etc.'),
+      def('area_scope', 'Area scope', 'full house, specific rooms, exterior only'),
+      def('paint_type', 'Paint type', 'emulsion, enamel, texture, waterproofing'),
     ],
     optional: [
       def('color_preference', 'Color preference', 'colors or mood'),
@@ -182,14 +182,14 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   solar_services: {
     required: [
-      def('project_type', 'Project type', 'residential, commercial, industrial'),
-      def('roof_type', 'Roof type', 'flat, slant, metal, etc.'),
-      def('size_sqft', 'Roof / area (sqft)', 'available roof or area'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to install'),
+      def('project_type', 'Solar project type', 'residential, commercial, industrial'),
+      def('roof_type', 'Roof type', 'flat, slant, metal, RCC'),
+      def('size_sqft', 'Available roof area (sqft)', 'roof or area for panels'),
+      def('budget', 'Solar budget', 'budget in lakhs or INR for system + installation'),
+      def('timeline', 'Installation timeline', 'when to install solar'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('capacity_kw', 'Capacity (kW)', 'desired or estimated kW'),
+      def('capacity_kw', 'Desired capacity (kW)', 'target or estimated kW'),
       def('grid_type', 'Grid type', 'on-grid, off-grid, hybrid'),
     ],
     optional: [
@@ -206,15 +206,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   electrical_services: {
     required: [
-      def('project_type', 'Project type', 'residential, commercial'),
-      def('scope_type', 'Scope', 'rewiring, new, audit, etc.'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to complete'),
+      def('project_type', 'Electrical project type', 'residential, commercial'),
+      def('scope_type', 'Electrical scope', 'rewiring, new installation, audit, upgrade'),
+      def('budget', 'Electrical work budget', 'budget in lakhs or INR'),
+      def('timeline', 'Electrical completion timeline', 'when to complete work'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('load_requirement', 'Load requirement', 'approx load in kW'),
-      def('current_system', 'Current system', 'existing wiring / DB'),
-      def('safety_audit', 'Safety audit', 'need audit – yes/no'),
+      def('load_requirement', 'Load requirement (kW)', 'existing or required load'),
+      def('current_system', 'Current electrical system', 'wiring age, DB, meter'),
+      def('safety_audit', 'Safety audit needed', 'yes/no – need electrical audit'),
     ],
     optional: [
       def('backup_need', 'Backup', 'inverter / backup need'),
@@ -230,15 +230,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   plumbing_services: {
     required: [
-      def('project_type', 'Project type', 'residential, commercial'),
-      def('scope_type', 'Scope', 'new, repair, renovation, etc.'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to complete'),
+      def('project_type', 'Plumbing project type', 'residential, commercial'),
+      def('scope_type', 'Plumbing scope', 'new, repair, renovation, extension'),
+      def('budget', 'Plumbing work budget', 'budget in lakhs or INR'),
+      def('timeline', 'Plumbing completion timeline', 'when to complete work'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('water_source', 'Water source', 'municipal, borewell, etc.'),
-      def('current_issues', 'Current issues', 'leaks, low pressure, etc.'),
-      def('property_age', 'Property age', 'if relevant'),
+      def('water_source', 'Water source', 'municipal, borewell, tank'),
+      def('current_issues', 'Current plumbing issues', 'leaks, low pressure, blockage'),
+      def('property_age', 'Property age', 'years – for pipe condition context'),
     ],
     optional: [
       def('hot_water_need', 'Hot water', 'geyser, solar, etc.'),
@@ -254,15 +254,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   irrigation_automation: {
     required: [
-      def('project_type', 'Project type', 'farm, garden, nursery, etc.'),
-      def('land_size_sqft', 'Land size (sqft)', 'area to be irrigated'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to install'),
+      def('project_type', 'Irrigation project type', 'farm, garden, nursery, lawn'),
+      def('land_size_sqft', 'Area to irrigate (sqft)', 'land or plot size in sqft'),
+      def('budget', 'Irrigation budget', 'budget in lakhs or INR for system'),
+      def('timeline', 'Irrigation install timeline', 'when to install'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('crop_type', 'Crop type', 'main crop or use'),
-      def('water_source', 'Water source', 'borewell, canal, tank'),
-      def('current_system', 'Current system', 'existing irrigation if any'),
+      def('crop_type', 'Crop or use', 'main crop, lawn, horticulture'),
+      def('water_source', 'Water source', 'borewell, canal, tank, municipal'),
+      def('current_system', 'Existing irrigation', 'none, manual, drip, sprinkler'),
     ],
     optional: [
       def('soil_type', 'Soil type', 'if known'),
@@ -278,15 +278,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   event_management: {
     required: [
-      def('project_type', 'Project type', 'corporate, wedding, social, etc.'),
-      def('event_type', 'Event type', 'conference, wedding, product launch'),
-      def('size_sqft', 'Venue / scale', 'approx size or guest area'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'event date / timeline'),
+      def('project_type', 'Event project type', 'corporate, wedding, social, product launch'),
+      def('event_type', 'Event type', 'conference, wedding, seminar, party'),
+      def('size_sqft', 'Venue / scale (sqft)', 'approx venue size or guest area'),
+      def('budget', 'Event budget', 'budget in lakhs or INR for event'),
+      def('timeline', 'Event date / timeline', 'event date or planning timeline'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
       def('guest_count', 'Guest count', 'approx number of guests'),
-      def('venue_type', 'Venue type', 'indoor, outdoor, hotel, etc.'),
+      def('venue_type', 'Venue type', 'indoor, outdoor, hotel, farmhouse'),
     ],
     optional: [
       def('catering_need', 'Catering', 'in scope or separate'),
@@ -302,15 +302,15 @@ const SERVICE_PARAMS: Record<string, { required: ParamDef[]; optional: ParamDef[
   },
   farm_infrastructure: {
     required: [
-      def('project_type', 'Project type', 'farm, dairy, poultry, etc.'),
+      def('project_type', 'Farm project type', 'farm, dairy, poultry, mixed'),
       def('land_size', 'Land size', 'area in sqft or acres'),
-      def('budget', 'Budget', 'budget in lakhs or INR'),
-      def('timeline', 'Timeline', 'when to complete'),
+      def('budget', 'Farm infra budget', 'budget in lakhs or INR for infrastructure'),
+      def('timeline', 'Infra completion timeline', 'when to complete setup'),
       def('contact_pref', 'Contact method', 'phone or email'),
       def('callback_time', 'Callback time', 'when to call'),
-      def('primary_use', 'Primary use', 'main activity or crop'),
-      def('water_source', 'Water source', 'borewell, canal, etc.'),
-      def('power_avail', 'Power availability', 'grid, solar, etc.'),
+      def('primary_use', 'Primary farm use', 'main activity, crop, or livestock'),
+      def('water_source', 'Water source', 'borewell, canal, pond, tank'),
+      def('power_avail', 'Power availability', 'grid, solar, generator'),
     ],
     optional: [
       def('irrigation_need', 'Irrigation', 'need irrigation setup'),
@@ -356,4 +356,14 @@ export function getDatapointsForService(service: string): CharacterDatapoint[] {
 /** Check if this service has a defined parameter set (9+9). */
 export function hasServiceParams(service: string): boolean {
   return !!SERVICE_PARAMS[service];
+}
+
+/** Service-specific parameter id → display label for UI and summaries. */
+export function getParameterLabelsForService(service: string): Record<string, string> {
+  const s = SERVICE_PARAMS[service];
+  if (!s) return {};
+  const out: Record<string, string> = {};
+  for (const r of s.required) out[r.id] = r.label;
+  for (const o of s.optional) out[o.id] = o.label;
+  return out;
 }

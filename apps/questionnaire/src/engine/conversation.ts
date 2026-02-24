@@ -183,14 +183,14 @@ USER'S CURRENT MOOD: <MOOD>
 WHAT WE ALREADY KNOW (NEVER ask about these again):
 <COLLECTED>
 
-WHAT'S STILL MISSING for this <SERVICE_NAME> project (ask only the FIRST item):
+WHAT'S STILL MISSING for this <SERVICE_NAME> project (you may ask about ANY ONE of these – choose dynamically):
 <PENDING>
 
-QUESTION ORDER RULE:
-- Ask about the FIRST item in WHAT'S STILL MISSING.
-- If the user has already given you information about a field (even informally), DO NOT ask for it again — it is in WHAT WE ALREADY KNOW.
-- If the user volunteered answers to multiple pending fields in one message, skip all of those and ask the next unanswered one.
-- Do not ask about budget or timeline until at least 3 core fields (type, size, scope) are known.
+DYNAMIC FLOW – NO FIXED ORDER:
+- Ask about ONE of the missing items above. Choose the most natural or contextually relevant next question based on what the user just said and the conversation so far. There is no fixed sequence.
+- If the user volunteered information about a field (even informally), DO NOT ask for it again — it is in WHAT WE ALREADY KNOW.
+- If the user mentioned multiple things in one message, acknowledge and ask about a different missing item that fits the flow. You may ask about budget or timeline when it feels natural (e.g. after they mention scope or type), not only after a fixed number of fields.
+- Vary the order: follow the user's lead. If they bring up budget early, discuss it. If they talk about timeline, go there. Just ensure you eventually cover all missing items without repeating.
 
 RECENT CONVERSATION:
 <TRANSCRIPT>
@@ -200,10 +200,9 @@ RECENT CONVERSATION:
 <CALL_CONFIRMED_SECTION>
 
 FLOW GUARDRAILS (must follow):
-- Do NOT ask about budget or timeline until at least 3 core fields (type, size, scope) are in WHAT WE ALREADY KNOW.
 - Do NOT ask any new question after you have confirmed a callback time and the user has acknowledged (e.g. "sure", "ok"). Only sign off.
 - Ask exactly ONE topic per message. Do not combine two questions.
-- Follow WHAT'S STILL MISSING: ask only the first item. Never re-ask something that is already in WHAT WE ALREADY KNOW.
+- Never re-ask something that is already in WHAT WE ALREADY KNOW. Pick any other missing item.
 
 STRICT RULES:
 1. Keep response under 180 characters
@@ -377,6 +376,16 @@ function summarisePersona(character: Character): string {
     .join('; ');
 }
 
+/** Shuffle array in place (Fisher–Yates). Used so pending params have no fixed order – flow is dynamic. */
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function collectPendingDatapoints(session: QuestionnaireDoc, character: Character): CharacterDatapoint[] {
   const points = hasServiceParams(session.service)
     ? getDatapointsForService(session.service)
@@ -386,7 +395,8 @@ function collectPendingDatapoints(session: QuestionnaireDoc, character: Characte
     const hasValue = session.parameters && Object.prototype.hasOwnProperty.call(session.parameters, dp.id);
     if (!hasValue) pending.push(dp);
   }
-  return hasServiceParams(session.service) ? pending : sortPending(pending);
+  if (hasServiceParams(session.service)) return shuffle(pending);
+  return sortPending(pending);
 }
 
 // Conversational order to avoid front-loading budget/timeline
@@ -408,20 +418,6 @@ const PREFERRED_ORDER = [
   'contact_pref',
   'preferred_start',
 ];
-
-const LATE_FIELDS = ['budget', 'timeline'];
-
-function hasAllBase(session: QuestionnaireDoc): boolean {
-  const required = getRequiredFieldsForService(session.service);
-  const early = required.filter((id) => !LATE_FIELDS.includes(id));
-  const need = Math.min(4, Math.max(2, early.length));
-  let collected = 0;
-  for (const id of early) {
-    const val = session.parameters?.[id];
-    if (val != null && (typeof val !== 'object' || (val as any).value != null)) collected++;
-  }
-  return collected >= need;
-}
 
 function isConversationComplete(session: QuestionnaireDoc): boolean {
   return isCoverageSatisfied(session.parameters || {}, session.service);
@@ -570,13 +566,9 @@ CRITICAL - CALL ALREADY CONFIRMED: You already said you'll connect/call and the 
   // Post-process to ensure human-like response
   text = humanizeResponse(text, currentMood, state.turnCount);
 
-  // askDirect: if high-priority pending exists and turns exceed threshold
+  // askDirect: if high-priority pending exists and turns exceed threshold (dynamic flow – no fixed order)
   const askDirect: string[] = [];
-  let highPriority = effectivePending.filter((p) => (p.priority || 3) <= 2);
-  // Defer budget/timeline until base fields are captured
-  if (!hasAllBase(session)) {
-    highPriority = highPriority.filter((p) => !LATE_FIELDS.includes(p.id));
-  }
+  const highPriority = effectivePending.filter((p) => (p.priority || 3) <= 2);
   if (highPriority.length) {
     askDirect.push(highPriority[0].id);
   }

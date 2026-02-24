@@ -682,6 +682,7 @@
         let currentQuestionnaireId = null;
         let currentService = null;
         let collectedParameters = {};
+        let parameterLabels = {};
 
         const serviceButtons = document.querySelectorAll('.service-btn');
         const messageInput = document.getElementById('messageInput');
@@ -925,6 +926,7 @@
                 currentQuestionnaireId = data.id;
                 currentService = data.service || service;
                 collectedParameters = {};
+                parameterLabels = data.parameterLabels || {};
                 currentCharacterName = data.character || 'AI Consultant';
                 updateHeader(currentCharacterName, service);
                 setHeaderStatus(`Awaiting your message • ${friendlyServiceName(service)}`);
@@ -991,6 +993,7 @@
                 const data = await response.json();
                  hideTypingIndicator();
                  messageInput.disabled = false;
+                if (data.parameterLabels) parameterLabels = data.parameterLabels;
                 
                 if (data.status === 'completed') {
                     const closingText = data.nextMessage || data.nextQuestion || 'Thank you! I have all the details. Your questionnaire is complete.';
@@ -1247,10 +1250,11 @@
 
             Object.entries(collectedParameters).forEach(([key, value]) => {
                 const displayVal = value != null && typeof value === 'object' && 'value' in value ? value.value : value;
+                const label = parameterLabels[key] || key.replace(/_/g, ' ');
                 const item = document.createElement('div');
                 item.className = 'parameter-item';
                 item.innerHTML = `
-                    <span class="parameter-name">${key}</span>
+                    <span class="parameter-name">${label}</span>
                     <span class="parameter-value">${displayVal}</span>
                 `;
                 parametersList.appendChild(item);
