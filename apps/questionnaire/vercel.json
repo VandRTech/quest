@@ -1,16 +1,19 @@
 {
   "version": 2,
-  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm run build",
+  "buildCommand": "cd ../.. && npm ci && npm run build",
   "builds": [
-    { "src": "api/questionnaire.bundled.js", "use": "@vercel/node" },
+    { "src": "api/questionnaire.js", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
-  "routes": [
-    { "src": "/test-ui.html", "dest": "/public/test-ui.html" },
-    { "src": "/public/(.*)", "dest": "/public/$1" },
-    { "src": "/(healthz|readyz|questionnaires(?:/.*)?|admin(?:/.*)?)", "dest": "/api/questionnaire.bundled" },
-    { "src": "/", "dest": "/public/index.html" }
+  "rewrites": [
+    { "source": "/test-ui.html", "destination": "/public/test-ui.html" },
+    { "source": "/public/:path*", "destination": "/public/:path*" },
+    { "source": "/healthz", "destination": "/api/questionnaire" },
+    { "source": "/readyz", "destination": "/api/questionnaire" },
+    { "source": "/questionnaires", "destination": "/api/questionnaire" },
+    { "source": "/questionnaires/:path*", "destination": "/api/questionnaire" },
+    { "source": "/admin", "destination": "/api/questionnaire" },
+    { "source": "/admin/:path*", "destination": "/api/questionnaire" },
+    { "source": "/", "destination": "/public/index.html" }
   ]
 }
-
-
