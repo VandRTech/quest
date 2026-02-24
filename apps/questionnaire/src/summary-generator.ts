@@ -99,35 +99,32 @@ export async function generateProjectSummary(
     })
     .join('\n');
 
-  const systemPrompt = `You are a project consultant. Create a CLEAR, CONCISE, project-initiation-ready summary from the collected parameters. This summary will be used to START the project – no fluff, only actionable points.
+  const systemPrompt = `You are a senior project consultant writing a detailed handover brief. Write in full, descriptive sentences — this document is read by the delivery team before they speak to the client for the first time. Make every field informative and specific.
 
 COLLECTED PARAMETERS:
 ${paramSummary}
 
 SERVICE: ${serviceName}
 
-Generate a JSON with exactly 8 fields. Each field must be 1-2 SHORT lines (or bullet points). Be direct and on-point.
+Generate a JSON with exactly 8 fields. Each field must be 2-3 descriptive sentences. Include all relevant details from the parameters; do not leave out numbers, materials, preferences or constraints.
 
-1. "projectOverview": One line. Type + size + style. Example: "3BHK villa, 4800 sqft, Japandi style renovation."
+1. "projectOverview": 2-3 sentences covering the type of project, property details (size, type), and scale. E.g. "The client is planning a full residential interior fit-out for a 3BHK villa spanning 1200 sqft. The home is newly constructed and the client wants a modern aesthetic throughout all rooms. This is a mid-to-high complexity project given full-home coverage and a defined style preference."
 
-2. "scopeOfWork": One line. What we will do. Example: "Interior design, key rooms (kids room, home office, theatre, pool area), execution and finishing."
+2. "scopeOfWork": 2-3 sentences on what will actually be done — rooms/areas covered, services included, execution approach. E.g. "The scope covers interior design and execution for all 3 bedrooms, living room, dining area, and kitchen. Services include space planning, furniture selection, finishes, and site supervision. No civil work is expected; focus is on interiors and furnishing."
 
-3. "clientRequirements": One line. Must-haves and preferences. Example: "Kids room, home office, pool, theatre room. Vastu: Telugu panchangam. No specific storage preference yet."
+3. "clientRequirements": 2-3 sentences on must-haves, style preferences, and things to avoid. E.g. "The client prefers a modern, clutter-free aesthetic with warm tones and quality finishes. Key must-haves include a dedicated home office corner and ample storage. The client wants to avoid heavy ornamentation or dark palettes."
 
-4. "technicalSpecs": One line. Materials, finishes, or "Standard as per scope" if not specified.
+4. "technicalSpecs": 2-3 sentences on materials, finishes, fixtures, or technical constraints. Infer reasonable defaults from service type and style where not stated. E.g. "Standard modular furniture and mid-range finishes are expected based on budget. Flooring is likely vitrified tiles or engineered wood. Electrical and plumbing points are already in place."
 
-5. "timeline": One line. Example: "3 months" or "As discussed: 3 months."
+5. "timeline": 2-3 sentences — expected duration, key milestones, and scheduling constraints or urgency. E.g. "The client has indicated a 6-month timeline for completion. Design finalisation should happen in the first 4-6 weeks, followed by procurement and execution. There is no hard deadline but the client prefers to move in by year end."
 
-6. "specialConsiderations": One line. Vastu, site status, renovation note, or "None."
+6. "specialConsiderations": 2-3 sentences on Vastu, site readiness, renovation complexity, pending approvals, or anything unusual. If nothing, note clearly. E.g. "No Vastu requirements were mentioned and the site is ready for work. The property is newly built so no demolition is needed. The client is available for design discussions on weekends."
 
-7. "estimatedScope": One line. Format: "Area: X | Budget: Y | Complexity: Low/Medium/High."
+7. "estimatedScope": 2-3 sentences summarising the financial and scale overview. Include area, budget, and complexity. E.g. "The project covers approximately 1200 sqft across a 3BHK. The client budget is 4 lakhs, which may need revisiting during design for a full-home fit-out. Complexity is rated Medium given full-home coverage with a clear brief."
 
-8. "initiationNextStep": ONE clear action line – what to do first to initiate the project. Examples:
-   - "Call client tomorrow 5 PM. Send proposal for 5L budget within 3 days."
-   - "Schedule site visit. Prepare quote for 5L, 3-month timeline."
-   Use callback_time and contact_pref from parameters. Be specific and actionable.
+8. "initiationNextStep": 2-3 sentences describing exact first actions. Be specific — who contacts whom, when, via what channel, and what to prepare. E.g. "Call the client tomorrow at 8 PM via phone to confirm preferences and share the onboarding checklist. Prepare a preliminary proposal for a 4L budget with a 6-month phased timeline before the call. Follow up with a site visit booking within the first week."
 
-Rules: No filler. No "we will ensure" or "as per client". Just facts and one clear next step. Return JSON only.`;
+Rules: Write in complete sentences. Use all parameter data. Be specific with numbers and preferences. No vague phrases like "as discussed". Return JSON only.`;
 
   try {
     const response = await geminiAPIClient.generateText({
