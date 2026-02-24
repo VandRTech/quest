@@ -5,7 +5,6 @@ node_modules/
 # Build outputs
 dist/
 *.bundled.js
-apps/questionnaire/api/questionnaire.js
 *.tsbuildinfo
 
 # Logs
