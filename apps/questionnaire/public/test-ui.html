@@ -877,7 +877,8 @@
         serviceButtons.forEach(btn => {
             btn.addEventListener('click', async () => {
                 const service = btn.dataset.service;
-                await startQuestionnaire(service);
+                const serviceId = btn.dataset.serviceId || service;
+                await startQuestionnaire(service, serviceId);
             });
         });
 
@@ -890,7 +891,7 @@
         });
         messageInput.addEventListener('input', updateSendButtonState);
 
-        async function startQuestionnaire(service) {
+        async function startQuestionnaire(service, serviceId = service) {
             try {
                 showStatus('Starting questionnaire...', 'info');
                 hideTypingIndicator();
@@ -926,8 +927,8 @@
                 currentService = data.service || service;
                 collectedParameters = {};
                 currentCharacterName = data.character || 'AI Consultant';
-                updateHeader(currentCharacterName, service);
-                setHeaderStatus(`Awaiting your message • ${friendlyServiceName(service)}`);
+                updateHeader(currentCharacterName, serviceId);
+                setHeaderStatus(`Starting conversation…`);
 
                 // Intro + first question come from backend with first message response; UI does not add any opening
 
@@ -936,10 +937,10 @@
                 sendBtn.disabled = false;
                 updateSendButtonState();
 
-                showStatus(`Questionnaire started for ${service}`, 'success');
+                showStatus(`Questionnaire started for ${friendlyServiceName(serviceId)}`, 'success');
                 updateParametersDisplay();
 
-                const triggerText = serviceTriggerMessages[service];
+                const triggerText = serviceTriggerMessages[serviceId];
                 if (triggerText) {
                     setTimeout(() => {
                         if (currentQuestionnaireId === data.id) {
