@@ -877,8 +877,7 @@
         serviceButtons.forEach(btn => {
             btn.addEventListener('click', async () => {
                 const service = btn.dataset.service;
-                const serviceId = btn.dataset.serviceId || service;
-                await startQuestionnaire(service, serviceId);
+                await startQuestionnaire(service);
             });
         });
 
@@ -891,7 +890,7 @@
         });
         messageInput.addEventListener('input', updateSendButtonState);
 
-        async function startQuestionnaire(service, serviceId = service) {
+        async function startQuestionnaire(service) {
             try {
                 showStatus('Starting questionnaire...', 'info');
                 hideTypingIndicator();
@@ -927,29 +926,23 @@
                 currentService = data.service || service;
                 collectedParameters = {};
                 currentCharacterName = data.character || 'AI Consultant';
-                updateHeader(currentCharacterName, serviceId);
-                setHeaderStatus(`Starting conversation…`);
+                updateHeader(currentCharacterName, service);
+                setHeaderStatus(`Awaiting your message • ${friendlyServiceName(service)}`);
 
-                // Intro + first question come from backend with first message response; UI does not add any opening
+                // Display opening message returned directly from backend
+                const openingMsg = data.nextMessage || data.nextQuestion;
+                if (openingMsg) {
+                    addMessage(openingMsg, 'assistant', currentCharacterName);
+                }
 
                 // Enable input
                 messageInput.disabled = false;
                 sendBtn.disabled = false;
                 updateSendButtonState();
 
-                showStatus(`Questionnaire started for ${friendlyServiceName(serviceId)}`, 'success');
+                showStatus(`Questionnaire started for ${service}`, 'success');
                 updateParametersDisplay();
-
-                const triggerText = serviceTriggerMessages[serviceId];
-                if (triggerText) {
-                    setTimeout(() => {
-                        if (currentQuestionnaireId === data.id) {
-                            sendMessage(triggerText, true);
-                        }
-                    }, 450);
-                } else {
-                    messageInput.focus();
-                }
+                messageInput.focus();
                 
             } catch (error) {
                 console.error('Error starting questionnaire:', error);

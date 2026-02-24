@@ -92,12 +92,36 @@ router.post('/questionnaires', async (req, res) => {
   const nameFromCore = coreCharacter.name || getCharacter(dynamicCharacterId)?.name || defaultDisplayName;
   const rawFallback = nameFromCore.includes(' - ') ? nameFromCore.split(' - ')[0].trim() : nameFromCore;
   const displayName = getDisplayNameByServiceCode(service, rawFallback);
-  await QuestionnaireStore.save(newDoc);
+  // Generate the opening message directly so the frontend can display it immediately
+  // without needing a trigger user message.
+  const character = getCharacter(dynamicCharacterId);
+  let openingMessage = '';
+  if (character) {
+    try {
+      const { generateAssistantReply } = await import('./engine/conversation');
+      const opening = getOpeningForService(serviceId, { name: displayName, language: character.language as any });
+      // Generate first question from AI
+      const { reply } = await generateAssistantReply(newDoc, character, { lastUserMessage: '' });
+      openingMessage = `${opening.trim()} ${reply.trim()}`.replace(/\s+/g, ' ').trim();
+      // Push to transcript so follow-up messages don't re-add the intro
+      newDoc.transcript.push({ role: 'assistant', text: openingMessage, ts: new Date() });
+      await QuestionnaireStore.save(newDoc);
+    } catch (err) {
+      console.error('[routes] Failed to generate opening message:', err);
+      openingMessage = getOpeningForService(serviceId, { name: displayName });
+    }
+  }
+
   res.status(201).json({
     id: newDoc.id,
     service: serviceId,
     character: displayName,
-    nextQuestion: '', // Intro comes from backend with first reply, not from create
+    nextQuestion: openingMessage,
+    nextMessage: openingMessage,
+    status: 'collecting',
+    collected: {},
+    options: [],
+    allowMultiple: false,
   });
   return;
 });
