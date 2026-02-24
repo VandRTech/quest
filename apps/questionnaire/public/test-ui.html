@@ -943,7 +943,7 @@
                 if (triggerText) {
                     setTimeout(() => {
                         if (currentQuestionnaireId === data.id) {
-                            sendMessage(triggerText);
+                            sendMessage(triggerText, true);
                         }
                     }, 450);
                 } else {
@@ -960,15 +960,17 @@
             }
         }
 
-        async function sendMessage(overrideText = null) {
+        async function sendMessage(overrideText = null, silent = false) {
             const message = overrideText !== null ? String(overrideText).trim() : messageInput.value.trim();
             if (!message || !currentQuestionnaireId) return;
 
             resetDetailPrompt();
             lockAllOptionButtons();
 
-            // Add user message to chat
-            addMessage(message, 'user');
+            // Add user message to chat (skip for silent auto-trigger on service selection)
+            if (!silent) {
+                addMessage(message, 'user');
+            }
             if (overrideText === null) {
             messageInput.value = '';
             }
