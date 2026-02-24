@@ -6,6 +6,7 @@ import { geminiAPIClient } from '@tatvaops/ai';
 import { serviceParameters } from './parameters';
 import { getParameterLabelsForService } from './service-parameters';
 import { QuestionnaireDoc, SixPointSummary } from './models/Questionnaire';
+import type { Message } from './models/Questionnaire';
 
 export interface ProjectSummary {
   projectOverview: string;
@@ -88,7 +89,8 @@ const paramLabelMap: Record<string, string> = {
 
 export async function generateProjectSummary(
   service: string,
-  parameters: Record<string, string>
+  parameters: Record<string, string>,
+  transcript?: Message[]
 ): Promise<ProjectSummary> {
   const serviceName = serviceDisplayNames[service] || service.replace(/_/g, ' ');
   const params = serviceParameters[service] || [];
@@ -101,130 +103,79 @@ export async function generateProjectSummary(
     })
     .join('\n');
 
-  const systemPrompt = `You are a senior project consultant writing a detailed handover brief. Write in full, descriptive sentences — this document is read by the delivery team before they speak to the client for the first time. Make every field informative and specific.
+  // 1-2 line summary purely from conversation (when transcript provided)
+  if (transcript && transcript.length > 0) {
+    const conversationText = transcript
+      .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`)
+      .join('\n');
 
-COLLECTED PARAMETERS:
+    const systemPrompt = `You are a project consultant. Write a single 1-2 line summary of what the client needs and what was agreed.
+
+CONVERSATION (what was actually said):
+${conversationText}
+
+COLLECTED DATA (for reference only – do not list; use only what was discussed):
 ${paramSummary}
 
 SERVICE: ${serviceName}
 
-Generate a JSON with exactly 8 fields. Each field must be 2-3 descriptive sentences. Include all relevant details from the parameters; do not leave out numbers, materials, preferences or constraints.
+RULES:
+- Output exactly 1-2 short lines. No more.
+- Base the summary purely on what was said in the conversation. Use the client's words and specifics (numbers, preferences, timeline) where they mentioned them.
+- No generic filler like "as discussed" or "the client is interested in". Be concrete: e.g. "3BHK interior, 4L budget, modern style, call tomorrow."
+- Return JSON only: { "summary": "your 1-2 line summary here" }`;
 
-1. "projectOverview": 2-3 sentences covering the type of project, property details (size, type), and scale. E.g. "The client is planning a full residential interior fit-out for a 3BHK villa spanning 1200 sqft. The home is newly constructed and the client wants a modern aesthetic throughout all rooms. This is a mid-to-high complexity project given full-home coverage and a defined style preference."
-
-2. "scopeOfWork": 2-3 sentences on what will actually be done — rooms/areas covered, services included, execution approach. E.g. "The scope covers interior design and execution for all 3 bedrooms, living room, dining area, and kitchen. Services include space planning, furniture selection, finishes, and site supervision. No civil work is expected; focus is on interiors and furnishing."
-
-3. "clientRequirements": 2-3 sentences on must-haves, style preferences, and things to avoid. E.g. "The client prefers a modern, clutter-free aesthetic with warm tones and quality finishes. Key must-haves include a dedicated home office corner and ample storage. The client wants to avoid heavy ornamentation or dark palettes."
-
-4. "technicalSpecs": 2-3 sentences on materials, finishes, fixtures, or technical constraints. Infer reasonable defaults from service type and style where not stated. E.g. "Standard modular furniture and mid-range finishes are expected based on budget. Flooring is likely vitrified tiles or engineered wood. Electrical and plumbing points are already in place."
-
-5. "timeline": 2-3 sentences — expected duration, key milestones, and scheduling constraints or urgency. E.g. "The client has indicated a 6-month timeline for completion. Design finalisation should happen in the first 4-6 weeks, followed by procurement and execution. There is no hard deadline but the client prefers to move in by year end."
-
-6. "specialConsiderations": 2-3 sentences on Vastu, site readiness, renovation complexity, pending approvals, or anything unusual. If nothing, note clearly. E.g. "No Vastu requirements were mentioned and the site is ready for work. The property is newly built so no demolition is needed. The client is available for design discussions on weekends."
-
-7. "estimatedScope": 2-3 sentences summarising the financial and scale overview. Include area, budget, and complexity. E.g. "The project covers approximately 1200 sqft across a 3BHK. The client budget is 4 lakhs, which may need revisiting during design for a full-home fit-out. Complexity is rated Medium given full-home coverage with a clear brief."
-
-8. "initiationNextStep": 2-3 sentences describing exact first actions. Be specific — who contacts whom, when, via what channel, and what to prepare. E.g. "Call the client tomorrow at 8 PM via phone to confirm preferences and share the onboarding checklist. Prepare a preliminary proposal for a 4L budget with a 6-month phased timeline before the call. Follow up with a site visit booking within the first week."
-
-Rules: Write in complete sentences. Use all parameter data. Be specific with numbers and preferences. No vague phrases like "as discussed". Return JSON only.`;
-
-  try {
-    const response = await geminiAPIClient.generateText({
-      model: 'gemini-2.5-flash',
-      system: systemPrompt,
-      user: 'Generate the project summary JSON based on the parameters provided.',
-      temperature: 0.3,
-    });
-
-    const responseText = String(response.data);
-    
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonStr = responseText;
-    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1].trim();
-    }
-    
-    // Try to parse as JSON; fill any missing fields from parameters so we don't show "--"
     try {
+      const response = await geminiAPIClient.generateText({
+        model: 'gemini-2.5-flash',
+        system: systemPrompt,
+        user: 'Generate the 1-2 line summary JSON from the conversation.',
+        temperature: 0.2,
+      });
+
+      const responseText = String(response.data);
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonMatch) jsonStr = jsonMatch[1].trim();
+
       const parsed = JSON.parse(jsonStr);
-      const timelineFromParams =
-        parameters.timeline || parameters.timelineExpectation || parameters.installationTimeline || parameters.accessTimeline || '';
-      const budgetFromParams =
-        parameters.budgetRange || parameters.budget || parameters.budgetTier || parameters.budgetBrandFlexibility || '';
-      const areaFromParams =
-        parameters.areaSqft || parameters.size_sqft || parameters.carpetAreaSqft || parameters.builtUpAreaSqft ||
-        parameters.totalAreaSqft || parameters.availableRoofAreaSqft || parameters.plotSize ||
-        parameters.plot_size_sqft || parameters.land_size || parameters.land_size_sqft || '';
+      const oneLiner = (parsed.summary || '').trim() || `${serviceName} inquiry – details from conversation.`;
+
       const callbackTime = parameters.callback_time || '';
       const contactPref = parameters.contact_pref || 'phone';
       const defaultNextStep =
         callbackTime && contactPref
-          ? `Call client ${callbackTime} via ${contactPref}. Prepare proposal per budget and timeline.`
-          : `Follow up via ${contactPref}. Prepare proposal per budget and timeline.`;
+          ? `Call client ${callbackTime} via ${contactPref}.`
+          : `Follow up via ${contactPref || 'phone'}.`;
 
       return {
-        projectOverview: parsed.projectOverview || `${serviceName} project`,
-        scopeOfWork: parsed.scopeOfWork || '--',
-        clientRequirements: parsed.clientRequirements || '--',
-        technicalSpecs: parsed.technicalSpecs || '--',
-        timeline: parsed.timeline || timelineFromParams || '--',
-        specialConsiderations: parsed.specialConsiderations || '--',
-        estimatedScope:
-          parsed.estimatedScope ||
-          [areaFromParams && `Size: ${areaFromParams}`, budgetFromParams && `Budget: ${budgetFromParams}`].filter(Boolean).join(' | ') ||
-          '--',
-        initiationNextStep: parsed.initiationNextStep || defaultNextStep,
+        projectOverview: oneLiner,
+        scopeOfWork: oneLiner,
+        clientRequirements: oneLiner,
+        technicalSpecs: '--',
+        timeline: parameters.timeline || parameters.timelineExpectation || '--',
+        specialConsiderations: '--',
+        estimatedScope: [parameters.budget && `Budget: ${parameters.budget}`, parameters.size_sqft && parameters.size_sqft].filter(Boolean).join(' | ') || '--',
+        initiationNextStep: defaultNextStep,
       };
-    } catch {
-      // If JSON parsing fails, try to extract sections manually
-      return extractSectionsFromText(responseText, parameters, serviceName);
+    } catch (err) {
+      console.error('Error generating conversation summary:', err);
+      return generateFallbackSummary(service, parameters, true);
     }
-  } catch (error) {
-    console.error('Error generating summary:', error);
-    // Return a fallback summary based on parameters
-    return generateFallbackSummary(service, parameters);
   }
-}
 
-function extractSectionsFromText(
-  text: string,
-  parameters: Record<string, string>,
-  serviceName: string
-): ProjectSummary {
-  // Fallback extraction if JSON parsing fails
-  const extractSection = (label: string): string => {
-    const regex = new RegExp(`"?${label}"?\\s*[:\"]\\s*"?([^"\\n]+)`, 'i');
-    const match = text.match(regex);
-    return match ? match[1].trim() : '--';
-  };
-
-  const callbackTime = parameters.callback_time || '';
-  const contactPref = parameters.contact_pref || 'phone';
-  const defaultNextStep = callbackTime
-    ? `Call client ${callbackTime} via ${contactPref}. Prepare proposal per budget and timeline.`
-    : `Follow up via ${contactPref}. Prepare proposal per budget and timeline.`;
-
-  return {
-    projectOverview: extractSection('projectOverview') || `${serviceName} project`,
-    scopeOfWork: extractSection('scopeOfWork') || '--',
-    clientRequirements: extractSection('clientRequirements') || '--',
-    technicalSpecs: extractSection('technicalSpecs') || '--',
-    timeline: extractSection('timeline') || parameters.timeline || parameters.timelineExpectation || '--',
-    specialConsiderations: extractSection('specialConsiderations') || '--',
-    estimatedScope: extractSection('estimatedScope') || '--',
-    initiationNextStep: extractSection('initiationNextStep') || defaultNextStep,
-  };
+  // No transcript: short fallback from params only
+  return generateFallbackSummary(service, parameters, true);
 }
 
 function generateFallbackSummary(
   service: string,
-  parameters: Record<string, string>
+  parameters: Record<string, string>,
+  shortOneTwoLine?: boolean
 ): ProjectSummary {
   const serviceName = serviceDisplayNames[service] || service.replace(/_/g, ' ');
-  
   const area = parameters.size_sqft || parameters.areaSqft || parameters.carpetAreaSqft || parameters.builtUpAreaSqft ||
-               parameters.plotSize || parameters.totalAreaSqft || parameters.availableRoofAreaSqft || '';
+               parameters.plotSize || parameters.totalAreaSqft || parameters.availableRoofAreaSqft || parameters.plot_size_sqft || parameters.land_size_sqft || '';
   const budget = parameters.budget || parameters.budgetRange || parameters.budgetTier || parameters.budgetBrandFlexibility || '';
   const timeline = parameters.timeline || parameters.timelineExpectation || parameters.installationTimeline ||
                    parameters.accessTimeline || '';
@@ -233,8 +184,23 @@ function generateFallbackSummary(
 
   const initiationNextStep =
     parameters.callback_time && parameters.contact_pref
-      ? `Call client ${parameters.callback_time} via ${parameters.contact_pref}. Prepare proposal for ${budget || 'budget'} within ${timeline || 'timeline'}.`
-      : `Follow up via ${parameters.contact_pref || 'phone'}. Prepare proposal for ${budget || 'budget'}, ${timeline || 'flexible timeline'}.`;
+      ? `Call client ${parameters.callback_time} via ${parameters.contact_pref}.`
+      : `Follow up via ${parameters.contact_pref || 'phone'}.`;
+
+  if (shortOneTwoLine) {
+    const line = [serviceName, spaceType, area && `${area} sqft`, budget && `${budget}`, timeline].filter(Boolean).join(' · ');
+    const oneLiner = line || `${serviceName} project.`;
+    return {
+      projectOverview: oneLiner,
+      scopeOfWork: oneLiner,
+      clientRequirements: oneLiner,
+      technicalSpecs: '--',
+      timeline: timeline || '--',
+      specialConsiderations: '--',
+      estimatedScope: [area && `Size: ${area}`, budget && `Budget: ${budget}`].filter(Boolean).join(' | ') || '--',
+      initiationNextStep,
+    };
+  }
 
   return {
     projectOverview: `${serviceName} project${spaceType ? ` for ${spaceType}` : ''}${area ? `, ${area}` : ''}`,

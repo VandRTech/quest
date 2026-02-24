@@ -187,7 +187,7 @@ router.post('/questionnaires/:id/messages', async (req, res) => {
     let summary: ProjectSummary | null = null;
     const flatParams = flattenParameters(doc.parameters);
     try {
-      summary = await generateProjectSummary(doc.service, flatParams);
+      summary = await generateProjectSummary(doc.service, flatParams, doc.transcript);
     } catch (err) {
       console.error('[error] Failed to generate project summary:', err);
     }

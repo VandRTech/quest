@@ -4,7 +4,7 @@ import { getCharacter } from './characterRegistry';
 import { geminiAPIClient } from '@tatvaops/ai';
 import { MAX_CONTEXT_TURNS, EXTRACTION_CONFIDENCE_THRESHOLD_AUTO, MAX_TURNS_BEFORE_DIRECT_ASK } from '../config';
 import { isCoverageSatisfied, getRequiredFieldsForService } from './coverage-policy';
-import { getDatapointsForService, hasServiceParams } from '../service-parameters';
+import { getDatapointsForService, hasServiceParams, getRequiredIdsForService, getOptionalIdsForService } from '../service-parameters';
 
 type LLMClient = (prompt: string) => Promise<string>;
 
@@ -186,10 +186,15 @@ WHAT WE ALREADY KNOW (NEVER ask about these again):
 WHAT'S STILL MISSING for this <SERVICE_NAME> project (you may ask about ANY ONE of these – choose dynamically):
 <PENDING>
 
-DYNAMIC FLOW – NO FIXED ORDER:
-- Ask about ONE of the missing items above. Choose the most natural or contextually relevant next question based on what the user just said and the conversation so far. There is no fixed sequence.
+ONLY SERVICE PARAMS – ask only from the list above:
+- You may ONLY ask about one of the parameters listed in WHAT'S STILL MISSING. Do not ask about any other topic, field, or question that is not in that list.
+- If the list is empty ("None - all data collected!") or the user has already given everything, only then sign off or confirm – do not invent new questions.
+
+CRITICAL – DYNAMIC FLOW, NO FIXED ORDER:
+- The list above is in RANDOM order. Do NOT prefer the first item. Choose which topic to ask about ONLY based on: (1) what the user just said, (2) what fits the conversation flow, (3) what feels natural next. Ignore list position.
+- Ask about ONE of the missing items. There is no fixed sequence. If the user brought up budget or timeline, you may ask about it next even if it appears later in the list.
 - If the user volunteered information about a field (even informally), DO NOT ask for it again — it is in WHAT WE ALREADY KNOW.
-- If the user mentioned multiple things in one message, acknowledge and ask about a different missing item that fits the flow. You may ask about budget or timeline when it feels natural (e.g. after they mention scope or type), not only after a fixed number of fields.
+- If the user mentioned multiple things in one message, acknowledge and ask about a different missing item that fits the flow.
 - Vary the order: follow the user's lead. If they bring up budget early, discuss it. If they talk about timeline, go there. Just ensure you eventually cover all missing items without repeating.
 
 RECENT CONVERSATION:
@@ -203,6 +208,7 @@ FLOW GUARDRAILS (must follow):
 - Do NOT ask any new question after you have confirmed a callback time and the user has acknowledged (e.g. "sure", "ok"). Only sign off.
 - Ask exactly ONE topic per message. Do not combine two questions.
 - Never re-ask something that is already in WHAT WE ALREADY KNOW. Pick any other missing item.
+- ONLY ask about parameters from the WHAT'S STILL MISSING list – no other topics or questions.
 
 STRICT RULES:
 1. Keep response under 180 characters
@@ -386,10 +392,11 @@ function shuffle<T>(arr: T[]): T[] {
   return out;
 }
 
-function collectPendingDatapoints(session: QuestionnaireDoc, character: Character): CharacterDatapoint[] {
+/** Only use service-defined params; never fall back to character datapoints. Questionnaire asks only from service params. */
+function collectPendingDatapoints(session: QuestionnaireDoc, _character: Character): CharacterDatapoint[] {
   const points = hasServiceParams(session.service)
     ? getDatapointsForService(session.service)
-    : (character.datapoints || []);
+    : [];
   const pending: CharacterDatapoint[] = [];
   for (const dp of points) {
     const hasValue = session.parameters && Object.prototype.hasOwnProperty.call(session.parameters, dp.id);
@@ -448,9 +455,10 @@ function buildTranscript(session: QuestionnaireDoc): string {
 }
 
 function formatPending(pending: CharacterDatapoint[]): string {
-  return pending
+  const list = pending
     .map((p) => `- ${p.id}${p.hint ? `: ${p.hint}` : ''}${p.priority ? ` (p${p.priority})` : ''}`)
     .join('\n');
+  return `(Order below is random – choose which to ask based on context, not position.)\n${list}`;
 }
 
 function formatCollected(session: QuestionnaireDoc): string {
@@ -566,11 +574,12 @@ CRITICAL - CALL ALREADY CONFIRMED: You already said you'll connect/call and the 
   // Post-process to ensure human-like response
   text = humanizeResponse(text, currentMood, state.turnCount);
 
-  // askDirect: if high-priority pending exists and turns exceed threshold (dynamic flow – no fixed order)
+  // askDirect: random from high-priority pending so we don't bias toward a fixed "first" (dynamic flow)
   const askDirect: string[] = [];
   const highPriority = effectivePending.filter((p) => (p.priority || 3) <= 2);
   if (highPriority.length) {
-    askDirect.push(highPriority[0].id);
+    const pick = shuffle(highPriority)[0];
+    if (pick) askDirect.push(pick.id);
   }
 
   updateConversationState(session, state);
@@ -895,13 +904,19 @@ function validateExtractionContext(
   return parsed;
 }
 
+/** Only persist extracted params that belong to this service's param set. Questionnaire asks and stores only service params. */
 export function applyExtracted(
   session: QuestionnaireDoc,
   extracted: Record<string, { value: any; confidence: number }>
 ) {
   if (!session.parameters) session.parameters = {};
+  if (!hasServiceParams(session.service)) return;
+  const allowedIds = new Set([
+    ...getRequiredIdsForService(session.service),
+    ...getOptionalIdsForService(session.service),
+  ]);
   Object.entries(extracted || {}).forEach(([key, val]) => {
-    if (!val) return;
+    if (!val || !allowedIds.has(key)) return;
     const conf = typeof val.confidence === 'number' ? val.confidence : 0;
     if (conf >= EXTRACTION_CONFIDENCE_THRESHOLD_AUTO) {
       (session.parameters as any)[key] = { value: val.value, confidence: conf, ts: new Date().toISOString() };

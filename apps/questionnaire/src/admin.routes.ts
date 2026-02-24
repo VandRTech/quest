@@ -105,7 +105,7 @@ router.post('/sessions/:id/generate-summary', async (req, res) => {
   });
 
   try {
-    const summary = await generateProjectSummary(doc.service, flatParams);
+    const summary = await generateProjectSummary(doc.service, flatParams, doc.transcript);
     doc.projectSummary = {
       ...summary,
       generatedAt: new Date(),
@@ -175,7 +175,9 @@ router.get('/analytics/mood', async (_req, res) => {
       rushed: 0,
       uncertain: 0,
     } as Record<string, number>,
-    averageSentiment: 0,
+    averageSe
+    
+    ntiment: 0,
     frustrationRate: 0,
     sessionsWithFrustration: 0,
   };
@@ -233,7 +235,7 @@ router.get('/sessions/:id/six-point-summary', async (req, res) => {
   if (!doc.sixPointSummary) {
     // If session is completed but no summary, generate it
     if (doc.status === 'completed') {
-      try {
+      try { 
         const summary = await generateSixPointSummary(doc);
         doc.sixPointSummary = summary;
         await QuestionnaireStore.save(doc);
