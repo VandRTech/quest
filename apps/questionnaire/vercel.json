@@ -1,17 +1,13 @@
 {
   "version": 2,
   "buildCommand": "cd ../.. && npm ci && npm run build",
-  "builds": [
-    { "src": "api/questionnaire.js", "use": "@vercel/node" },
-    { "src": "public/**", "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/test-ui.html", "dest": "/public/test-ui.html" },
-    { "src": "/public/(.*)", "dest": "/public/$1" },
-    { "src": "/healthz", "dest": "/api/questionnaire.js" },
-    { "src": "/readyz", "dest": "/api/questionnaire.js" },
-    { "src": "/questionnaires(.*)", "dest": "/api/questionnaire.js" },
-    { "src": "/admin(.*)", "dest": "/api/questionnaire.js" },
-    { "src": "/", "dest": "/public/index.html" }
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/healthz", "destination": "/api/questionnaire" },
+    { "source": "/readyz", "destination": "/api/questionnaire" },
+    { "source": "/questionnaires", "destination": "/api/questionnaire" },
+    { "source": "/questionnaires/:path*", "destination": "/api/questionnaire" },
+    { "source": "/admin", "destination": "/api/questionnaire" },
+    { "source": "/admin/:path*", "destination": "/api/questionnaire" }
   ]
 }

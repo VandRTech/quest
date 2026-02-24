@@ -5,6 +5,7 @@
     "rootDir": "src"
   },
   "include": ["src"],
+  "exclude": ["src/vercel-handler.ts"],
   "references": [
     { "path": "../../packages/core" },
     { "path": "../../packages/ai" }
